@@ -1,0 +1,579 @@
+#+TITLE: MCP Lorem Ipsum Server - Setup and Implementation Guide
+#+AUTHOR: jwalsh
+#+DATE: [2025-09-14 Sun]
+#+STARTUP: overview
+
+* Overview
+  Building a Lorem Ipsum generator as an MCP (Model Context Protocol) server that:
+  - Works locally and remotely
+  - Publishes to GitHub Packages npm registry
+  - Integrates with Claude, Claude Code, and mcp.el
+  - Mirrors [[https://www.emacswiki.org/emacs/LoremIpsum][EmacsWiki LoremIpsum]] functionality
+
+* Required Reading for Remote MCP Development
+
+** Core MCP Specifications
+   :PROPERTIES:
+   :CUSTOM_ID: core-specs
+   :END:
+
+*** TODO [[https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization][MCP Authorization Specification (2025-06-18)]]
+    - Auth flow for third-party services
+    - OAuth 2.0 integration requirements
+    - Token management and refresh flows
+    - Security considerations
+
+*** TODO [[https://modelcontextprotocol.io/specification][MCP Core Specification]]
+    - Protocol fundamentals
+    - Transport mechanisms (SSE vs Streamable HTTP)
+    - Tool, prompt, and resource definitions
+    - Message format and lifecycle
+
+** OAuth and Security Standards
+
+*** TODO [[https://datatracker.ietf.org/doc/html/rfc7591][RFC 7591 - OAuth 2.0 Dynamic Client Registration]]
+    - Dynamic Client Registration (DCR) protocol
+    - Client metadata requirements
+    - Registration request/response format
+    - Error handling
+
+*** TODO [[https://www.rfc-editor.org/rfc/rfc8707.html][RFC 8707 - Resource Indicators for OAuth 2.0]]
+    - Resource parameter usage
+    - Multiple resource server scenarios
+    - Security considerations for resource indicators
+
+*** TODO [[https://datatracker.ietf.org/doc/html/rfc9728][RFC 9728 - OAuth 2.0 Token Exchange]]
+    - Token exchange protocol
+    - Subject token types
+    - Actor token scenarios
+    - Security token service integration
+
+*** TODO [[https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-5.1.1][OAuth 2.1 Draft - Section 5.1.1]]
+    - Modern OAuth best practices
+    - Authorization code flow updates
+    - PKCE requirements
+    - Security improvements over OAuth 2.0
+
+*** TODO [[https://www.rfc-editor.org/rfc/rfc3986][RFC 3986 - Uniform Resource Identifier (URI)]]]
+    - URI syntax and components
+    - URL encoding requirements
+    - Fragment identifier handling
+    - Normalization rules
+
+** Claude-Specific Implementation Details
+
+*** Critical Requirements from Documentation
+    #+BEGIN_QUOTE
+    - OAuth callback URL: https://claude.ai/api/mcp/auth_callback
+    - OAuth client name: Claude
+    - Future callback URL: https://claude.com/api/mcp/auth_callback (prepare for both)
+    - Supports both 3/26 and 6/18 auth specs
+    - Supports Dynamic Client Registration (DCR)
+    - Custom client ID/secret support (as of July)
+    #+END_QUOTE
+
+*** Platform Support
+    - Claude Desktop (Pro, Max, Team, Enterprise)
+    - Claude Web (Pro, Max, Team, Enterprise)
+    - Claude Mobile (iOS/Android) - view only, cannot add new servers
+
+*** Protocol Features
+    - [X] Tools
+    - [X] Prompts
+    - [X] Resources
+    - [X] Text-based tool results
+    - [X] Image-based tool results
+    - [X] Text-based resources
+    - [X] Binary-based resources
+    - [ ] Resource subscriptions (not yet supported)
+    - [ ] Sampling (not yet supported)
+
+* Implementation Resources
+
+** SDK Examples
+   
+*** TODO [[https://github.com/modelcontextprotocol/typescript-sdk][TypeScript SDK]]
+    - Remote server examples
+    - Client/server auth implementations
+    - Transport layer abstractions
+
+*** TODO [[https://github.com/modelcontextprotocol/python-sdk][Python SDK]]
+    - Remote server examples
+    - Auth flow implementations
+    - Async/await patterns
+
+** Reference Implementations
+
+*** TODO [[https://github.com/cloudflare/ai/tree/main/demos/remote-mcp-authless][Cloudflare Remote MCP Authless Example]]
+    #+BEGIN_SRC bash
+    # Key files to study:
+    # - server implementation
+    # - deployment configuration
+    # - auth bypass patterns
+    #+END_SRC
+
+*** TODO [[https://support.anthropic.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp][Anthropic Remote MCP Guide]]
+    - Setup instructions
+    - Testing procedures
+    - Troubleshooting tips
+
+* Project Architecture
+
+** Directory Structure
+   #+BEGIN_SRC text
+   mcp-lorem/
+   ├── setup.org                    # This file
+   ├── package.json                 # NPM package configuration
+   ├── README.md                    # Project documentation
+   ├── LICENSE                      # MIT License
+   ├── .github/
+   │   └── workflows/
+   │       └── npm-publish.yml      # GitHub Packages publish workflow
+   ├── src/
+   │   ├── core/
+   │   │   ├── lorem.py            # Core lorem ipsum generator
+   │   │   └── lorem.ts            # TypeScript port
+   │   ├── local/
+   │   │   └── server.py           # Local MCP server
+   │   └── remote/
+   │       ├── server.ts           # Remote MCP server
+   │       └── auth.ts             # OAuth implementation
+   ├── tests/
+   │   ├── core.test.ts
+   │   ├── local.test.py
+   │   └── remote.test.ts
+   ├── examples/
+   │   ├── claude-code/            # Claude Code integration
+   │   ├── mcp-el/                # Emacs mcp.el integration
+   │   └── inspector/              # MCP inspector examples
+   └── docs/
+       └── architecture.mermaid     # System architecture diagram
+   #+END_SRC
+
+** System Architecture
+   #+BEGIN_SRC mermaid :file architecture.png :mkdirp t
+   graph TB
+       subgraph "Client Layer"
+           Claude[Claude/Claude Desktop]
+           CC[Claude Code]
+           Emacs[Emacs + mcp.el]
+           Inspector[MCP Inspector]
+       end
+       
+       subgraph "MCP Lorem Server"
+           Router[Request Router]
+           Auth[OAuth Handler]
+           Core[Lorem Core Engine]
+           
+           subgraph "Endpoints"
+               Tools[Tools API]
+               Prompts[Prompts API]
+               Resources[Resources API]
+           end
+       end
+       
+       subgraph "Lorem Generators"
+           Standard[Standard Lorem]
+           Cicero[Cicero Mode]
+           Bacon[Bacon Ipsum]
+           Hipster[Hipster Ipsum]
+           Custom[Custom Templates]
+       end
+       
+       Claude --> Router
+       CC --> Router
+       Emacs --> Router
+       Inspector --> Router
+       
+       Router --> Auth
+       Auth --> Tools
+       Auth --> Prompts
+       Auth --> Resources
+       
+       Tools --> Core
+       Prompts --> Core
+       Resources --> Core
+       
+       Core --> Standard
+       Core --> Cicero
+       Core --> Bacon
+       Core --> Hipster
+       Core --> Custom
+   #+END_SRC
+
+* Implementation Plan
+
+** Phase 1: Core Lorem Engine
+   
+*** TODO Implement core lorem generation logic
+    #+BEGIN_SRC python :tangle src/core/lorem.py :mkdirp t
+    """Core Lorem Ipsum generation engine."""
+    
+    import random
+    from typing import List, Optional, Literal
+    
+    class LoremGenerator:
+        """Lorem Ipsum text generator with multiple modes."""
+        
+        # Standard Lorem Ipsum word bank
+        STANDARD_WORDS = [
+            "lorem", "ipsum", "dolor", "sit", "amet", "consectetur",
+            "adipiscing", "elit", "sed", "do", "eiusmod", "tempor",
+            "incididunt", "ut", "labore", "et", "dolore", "magna",
+            "aliqua", "enim", "ad", "minim", "veniam", "quis",
+            "nostrud", "exercitation", "ullamco", "laboris", "nisi",
+            "aliquip", "ex", "ea", "commodo", "consequat", "duis",
+            "aute", "irure", "in", "reprehenderit", "voluptate",
+            "velit", "esse", "cillum", "fugiat", "nulla", "pariatur",
+            "excepteur", "sint", "occaecat", "cupidatat", "non",
+            "proident", "sunt", "culpa", "qui", "officia", "deserunt",
+            "mollit", "anim", "id", "est", "laborum"
+        ]
+        
+        def __init__(self, mode: Literal["standard", "cicero", "bacon", "hipster"] = "standard"):
+            self.mode = mode
+            self.words = self._get_word_bank()
+        
+        def _get_word_bank(self) -> List[str]:
+            """Get appropriate word bank based on mode."""
+            # TODO: Implement different word banks for each mode
+            return self.STANDARD_WORDS
+        
+        def generate_words(self, count: int) -> str:
+            """Generate specified number of words."""
+            words = []
+            for _ in range(count):
+                words.append(random.choice(self.words))
+            return " ".join(words)
+        
+        def generate_sentences(self, count: int) -> str:
+            """Generate specified number of sentences."""
+            sentences = []
+            for _ in range(count):
+                word_count = random.randint(5, 15)
+                sentence = self.generate_words(word_count)
+                sentence = sentence[0].upper() + sentence[1:] + "."
+                sentences.append(sentence)
+            return " ".join(sentences)
+        
+        def generate_paragraphs(self, count: int) -> str:
+            """Generate specified number of paragraphs."""
+            paragraphs = []
+            for _ in range(count):
+                sentence_count = random.randint(3, 7)
+                paragraph = self.generate_sentences(sentence_count)
+                paragraphs.append(paragraph)
+            return "\n\n".join(paragraphs)
+    #+END_SRC
+
+** Phase 2: Local MCP Server
+
+*** TODO Implement local MCP server
+    #+BEGIN_SRC python :tangle src/local/server.py :mkdirp t
+    """Local MCP server for Lorem Ipsum generation."""
+    
+    import asyncio
+    from mcp.server import Server
+    from mcp.types import Tool, TextContent
+    
+    from ..core.lorem import LoremGenerator
+    
+    # Initialize server
+    server = Server("mcp-lorem")
+    
+    @server.list_tools()
+    async def list_tools():
+        """List available Lorem Ipsum tools."""
+        return [
+            Tool(
+                name="generate_lorem",
+                description="Generate Lorem Ipsum text",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["words", "sentences", "paragraphs"],
+                            "description": "Type of content to generate"
+                        },
+                        "count": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "description": "Number of units to generate"
+                        },
+                        "mode": {
+                            "type": "string",
+                            "enum": ["standard", "cicero", "bacon", "hipster"],
+                            "default": "standard",
+                            "description": "Lorem Ipsum style"
+                        }
+                    },
+                    "required": ["type", "count"]
+                }
+            )
+        ]
+    
+    @server.call_tool()
+    async def call_tool(name: str, arguments: dict) -> TextContent:
+        """Handle tool calls."""
+        if name == "generate_lorem":
+            generator = LoremGenerator(mode=arguments.get("mode", "standard"))
+            
+            gen_type = arguments["type"]
+            count = arguments["count"]
+            
+            if gen_type == "words":
+                content = generator.generate_words(count)
+            elif gen_type == "sentences":
+                content = generator.generate_sentences(count)
+            elif gen_type == "paragraphs":
+                content = generator.generate_paragraphs(count)
+            else:
+                raise ValueError(f"Unknown generation type: {gen_type}")
+            
+            return TextContent(
+                type="text",
+                text=content
+            )
+        
+        raise ValueError(f"Unknown tool: {name}")
+    
+    if __name__ == "__main__":
+        asyncio.run(server.run())
+    #+END_SRC
+
+** Phase 3: Remote MCP Server with OAuth
+
+*** TODO Implement remote server with OAuth support
+    #+BEGIN_SRC typescript :tangle src/remote/server.ts :mkdirp t
+    // Remote MCP server implementation with OAuth support
+    
+    import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+    import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+    import {
+      CallToolRequestSchema,
+      ListToolsRequestSchema,
+    } from "@modelcontextprotocol/sdk/types.js";
+    
+    // TODO: Implement OAuth handler
+    // TODO: Implement remote endpoints
+    // TODO: Add Cloudflare Workers support
+    #+END_SRC
+
+** Phase 4: NPM Package Configuration
+
+*** TODO Configure package.json for GitHub Packages
+    #+BEGIN_SRC json :tangle package.json :mkdirp t
+    {
+      "name": "@aygp-dr/mcp-lorem",
+      "version": "0.1.0",
+      "description": "Lorem Ipsum generator as an MCP server (local and remote)",
+      "main": "dist/index.js",
+      "types": "dist/index.d.ts",
+      "scripts": {
+        "build": "tsc",
+        "test": "jest",
+        "start:local": "python src/local/server.py",
+        "start:remote": "node dist/remote/server.js",
+        "prepublishOnly": "npm run build && npm test"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/aygp-dr/mcp-lorem.git"
+      },
+      "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+      },
+      "keywords": [
+        "mcp",
+        "lorem-ipsum",
+        "claude",
+        "anthropic",
+        "model-context-protocol"
+      ],
+      "author": "jwalsh",
+      "license": "MIT",
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0"
+      },
+      "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0",
+        "jest": "^29.0.0"
+      }
+    }
+    #+END_SRC
+
+** Phase 5: Testing and Integration
+
+*** TODO Set up MCP Inspector testing
+    #+BEGIN_SRC bash :tangle test-inspector.sh :mkdirp t
+    #!/bin/bash
+    # Test with MCP Inspector
+    
+    # Install inspector if not present
+    npm install -g @modelcontextprotocol/inspector
+    
+    # Test local server
+    echo "Testing local server..."
+    mcp-inspector python src/local/server.py
+    
+    # Test remote server
+    echo "Testing remote server..."
+    mcp-inspector node dist/remote/server.js
+    #+END_SRC
+
+*** TODO Create mcp.el integration example
+    #+BEGIN_SRC elisp :tangle examples/mcp-el/mcp-lorem.el :mkdirp t
+    ;;; mcp-lorem.el --- Lorem Ipsum via MCP -*- lexical-binding: t; -*-
+    
+    (require 'mcp)
+    
+    (defun mcp-lorem-generate (type count &optional mode)
+      "Generate Lorem Ipsum text via MCP.
+    TYPE is 'words, 'sentences, or 'paragraphs.
+    COUNT is the number of units to generate.
+    MODE is optional style: 'standard, 'cicero, 'bacon, or 'hipster."
+      (interactive
+       (list
+        (intern (completing-read "Type: " '("words" "sentences" "paragraphs")))
+        (read-number "Count: " 5)
+        (intern (completing-read "Mode: " '("standard" "cicero" "bacon" "hipster")))))
+      (let ((result (mcp-call-tool
+                     "generate_lorem"
+                     `((type . ,(symbol-name type))
+                       (count . ,count)
+                       (mode . ,(symbol-name (or mode 'standard)))))))
+        (insert (alist-get 'text result))))
+    
+    (provide 'mcp-lorem)
+    ;;; mcp-lorem.el ends here
+    #+END_SRC
+
+* Development Checklist
+
+** Core Implementation
+   - [ ] Implement lorem.py with all generation modes
+   - [ ] Port to TypeScript for remote server
+   - [ ] Add unit tests for core functionality
+   - [ ] Add custom word bank support
+
+** Local Server
+   - [ ] Implement MCP server protocol
+   - [ ] Add all tool definitions
+   - [ ] Test with MCP Inspector
+   - [ ] Add resource endpoints for word banks
+
+** Remote Server  
+   - [ ] Implement OAuth flow (DCR support)
+   - [ ] Handle token refresh
+   - [ ] Add Cloudflare Workers deployment
+   - [ ] Implement rate limiting
+   - [ ] Add IP whitelisting for Claude
+
+** Integration
+   - [ ] Test with Claude Desktop
+   - [ ] Test with Claude Code
+   - [ ] Create mcp.el package
+   - [ ] Write comprehensive examples
+
+** Publishing
+   - [ ] Set up GitHub Actions for npm publish
+   - [ ] Configure package for GitHub Packages
+   - [ ] Add comprehensive README
+   - [ ] Submit to MCP directory
+
+* OAuth Implementation Notes
+
+** Key Requirements from RFCs
+   
+*** Dynamic Client Registration (RFC 7591)
+    - Must support client metadata exchange
+    - Handle registration errors gracefully
+    - Store client credentials securely
+    
+*** Resource Indicators (RFC 8707)
+    - Include resource parameter when applicable
+    - Support multiple resource servers if needed
+    
+*** OAuth 2.1 Best Practices
+    - Always use PKCE
+    - No implicit flow
+    - Secure token storage
+    - Regular token rotation
+
+** Claude-Specific OAuth Flow
+   #+BEGIN_SRC mermaid :file oauth-flow.png :mkdirp t
+   sequenceDiagram
+       participant User
+       participant Claude
+       participant MCPServer as MCP Lorem Server
+       participant AuthServer as Auth Server
+       
+       User->>Claude: Add MCP Lorem connector
+       Claude->>MCPServer: GET /.well-known/oauth
+       MCPServer-->>Claude: OAuth metadata
+       
+       Claude->>AuthServer: POST /register (DCR)
+       AuthServer-->>Claude: Client credentials
+       
+       Claude->>User: Show authorization prompt
+       User->>Claude: Approve
+       
+       Claude->>AuthServer: GET /authorize
+       AuthServer->>User: Login page
+       User->>AuthServer: Authenticate
+       AuthServer-->>Claude: Authorization code
+       
+       Claude->>AuthServer: POST /token
+       AuthServer-->>Claude: Access token + refresh token
+       
+       Claude->>MCPServer: MCP requests with Bearer token
+       MCPServer-->>Claude: Lorem ipsum content
+   #+END_SRC
+
+* Security Considerations
+
+** IP Whitelisting
+   - TODO: Get Claude's IP addresses from documentation
+   - Implement middleware to validate source IPs
+   - Log all access attempts
+
+** Token Management
+   - Short-lived access tokens (1 hour)
+   - Long-lived refresh tokens (30 days)
+   - Secure token storage
+   - Token revocation support
+
+** Rate Limiting
+   - Per-user rate limits
+   - Global rate limits
+   - Graceful degradation
+   - Clear error messages
+
+* Resources and Links
+
+** Official Documentation
+   - [[https://modelcontextprotocol.io][Model Context Protocol]]
+   - [[https://support.anthropic.com/en/collections/11162639-claude][Claude Help Center]]
+   - [[https://docs.github.com/en/packages][GitHub Packages Documentation]]
+
+** Community Resources
+   - [[https://github.com/modelcontextprotocol/awesome-mcp][Awesome MCP]]
+   - MCP Discord/Slack channels
+   - Example implementations
+
+** Testing Tools
+   - [[https://github.com/modelcontextprotocol/inspector][MCP Inspector]]
+   - [[https://oauth.tools][OAuth Testing Tools]]
+   - Postman/Insomnia for API testing
+
+* Next Steps
+
+1. Start with core lorem.py implementation
+2. Build local MCP server for testing
+3. Implement OAuth flow step by step
+4. Test thoroughly with Inspector
+5. Deploy to Cloudflare Workers
+6. Submit to MCP directory
