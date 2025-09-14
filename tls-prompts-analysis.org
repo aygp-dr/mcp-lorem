@@ -1,0 +1,433 @@
+#+TITLE: MCP Lorem - TLS 1.3 and Prompts Analysis
+#+AUTHOR: jwalsh
+#+DATE: [2025-09-14 Sun]
+
+* RFC 8446 (TLS 1.3) - Transport Layer Security
+
+** Overview
+   RFC 8446 specifies version 1.3 of the Transport Layer Security (TLS) protocol, designed to prevent eavesdropping, tampering, and message forgery. Published in August 2018, it represents a major overhaul of the protocol.
+
+** Key Features Relevant to MCP
+
+*** 1. Enhanced Security
+    - Removed potentially dangerous design elements from earlier versions
+    - MD5 and SHA-1 combinations replaced with SHA-256
+    - Eliminated RSA key transport and static DH exchanges
+    - No more CBC mode or SHA-1 cipher suites
+
+*** 2. Performance Improvements
+    - Reduced handshake from 2-RTT to 1-RTT (and 0-RTT in some cases)
+    - Encrypts most of the handshake for better privacy
+    - Streamlined connection establishment
+
+*** 3. Forward Secrecy
+    - All TLS 1.3 cipher suites provide forward secrecy
+    - Past communications remain secure even if keys are compromised
+
+** Impact on MCP Lorem Implementation
+
+*** Automatic Handling
+    When deploying on Cloudflare Workers or similar platforms:
+    - TLS termination is handled by the platform
+    - Automatic TLS 1.3 support (no configuration needed)
+    - Certificate management handled by CDN
+
+*** What You DON'T Need to Implement
+    #+BEGIN_QUOTE
+    ✅ Good news: For MCP servers on modern platforms, TLS 1.3 is transparent
+    - No manual TLS configuration
+    - No certificate management
+    - No cipher suite selection
+    #+END_QUOTE
+
+*** Security Considerations
+    However, understanding TLS 1.3 helps with:
+    1. **Token Transport**: OAuth tokens benefit from TLS 1.3's enhanced security
+    2. **Performance**: 1-RTT handshake means faster initial connections
+    3. **Privacy**: Encrypted handshake protects OAuth flow metadata
+    4. **Future-proofing**: TLS 1.3 is mandatory for modern security standards
+
+** MCP-Specific TLS Notes
+
+*** Connection Security Chain
+    #+BEGIN_SRC mermaid :file tls-chain.png :mkdirp t
+    graph LR
+        Claude[Claude Client] -->|TLS 1.3| CDN[Cloudflare CDN]
+        CDN -->|Internal| Worker[MCP Worker]
+        Worker -->|OAuth over TLS| Auth[Auth Server]
+
+        style Claude fill:#f9f,stroke:#333,stroke-width:2px
+        style CDN fill:#9ff,stroke:#333,stroke-width:2px
+        style Worker fill:#ff9,stroke:#333,stroke-width:2px
+        style Auth fill:#9f9,stroke:#333,stroke-width:2px
+    #+END_SRC
+
+*** Best Practices
+    1. Always use HTTPS URLs for OAuth endpoints
+    2. Validate TLS certificates in client implementations
+    3. Set appropriate security headers (handled by CDN)
+    4. Monitor for TLS-related vulnerabilities
+
+* MCP Prompts Specification - A Game Changer for Lorem Ipsum
+
+** Overview
+   Prompts are designed to be user-controlled, exposed from servers to clients with the intention of the user being able to explicitly select them for use. This is perfect for lorem ipsum generation!
+
+** Why Prompts Are Perfect for Lorem Ipsum
+
+*** 1. User Discovery
+    Typically, prompts would be triggered through user-initiated commands in the user interface, which allows users to naturally discover and invoke available prompts
+
+    Example: Users could see slash commands like:
+    - `/lorem-blog` - Generate blog post template
+    - `/lorem-email` - Generate email template
+    - `/lorem-presentation` - Generate presentation outline
+
+*** 2. Structured Templates
+    Prompts allow pre-defined templates with arguments:
+    #+BEGIN_SRC json
+    {
+      "name": "blog_post",
+      "description": "Generate a blog post structure with lorem ipsum",
+      "arguments": [
+        {
+          "name": "topic",
+          "description": "Blog post topic",
+          "required": false
+        },
+        {
+          "name": "paragraphs",
+          "description": "Number of paragraphs",
+          "required": false
+        }
+      ]
+    }
+    #+END_SRC
+
+*** 3. Rich Content Support
+    Messages in a prompt can contain text content, image content, audio content, and embedded resources
+
+    This means we can:
+    - Include lorem ipsum text
+    - Add placeholder images
+    - Reference style guides as resources
+
+** Implementation Strategy for MCP Lorem
+
+*** 1. Capability Declaration
+    #+BEGIN_SRC python
+    @server.initialize()
+    async def initialize():
+        return {
+            "capabilities": {
+                "tools": {},
+                "prompts": {
+                    "listChanged": True  # We'll notify when templates change
+                },
+                "resources": {}
+            }
+        }
+    #+END_SRC
+
+*** 2. Prompt Templates
+    #+BEGIN_SRC python
+    LOREM_PROMPTS = [
+        {
+            "name": "email_template",
+            "description": "Professional email with lorem ipsum",
+            "arguments": [
+                {"name": "tone", "description": "formal/casual/friendly"},
+                {"name": "length", "description": "short/medium/long"}
+            ]
+        },
+        {
+            "name": "blog_outline",
+            "description": "Blog post structure with sections",
+            "arguments": [
+                {"name": "sections", "description": "Number of sections"},
+                {"name": "style", "description": "technical/lifestyle/business"}
+            ]
+        },
+        {
+            "name": "presentation_slides",
+            "description": "Presentation outline with lorem content",
+            "arguments": [
+                {"name": "slides", "description": "Number of slides"},
+                {"name": "bullet_points", "description": "Points per slide"}
+            ]
+        },
+        {
+            "name": "ui_mockup",
+            "description": "UI component with placeholder text",
+            "arguments": [
+                {"name": "component", "description": "card/form/hero/navbar"},
+                {"name": "variant", "description": "Style variant"}
+            ]
+        }
+    ]
+    #+END_SRC
+
+*** 3. Prompt Response Example
+    #+BEGIN_SRC python
+    @server.get_prompt()
+    async def get_prompt(name: str, arguments: dict):
+        if name == "email_template":
+            tone = arguments.get("tone", "formal")
+            length = arguments.get("length", "medium")
+
+            return {
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": {
+                            "type": "text",
+                            "text": f"""Subject: Lorem Ipsum Dolor Sit Amet
+
+{generate_greeting(tone)}
+
+{generate_paragraphs(2 if length == "short" else 3)}
+
+{generate_closing(tone)}
+
+Best regards,
+Lorem Ipsum"""
+                        }
+                    }
+                ]
+            }
+    #+END_SRC
+
+*** 4. Advanced Prompt Features
+    #+BEGIN_SRC python
+    # Prompt with embedded resources
+    {
+        "name": "design_system",
+        "description": "Complete design system documentation",
+        "messages": [
+            {
+                "role": "assistant",
+                "content": {
+                    "type": "text",
+                    "text": "Here's your design system with lorem ipsum content:"
+                }
+            },
+            {
+                "role": "assistant",
+                "content": {
+                    "type": "resource",
+                    "resource": {
+                        "uri": "lorem://typography-guide",
+                        "mimeType": "text/markdown",
+                        "text": "# Typography Guide\n\n## Headings\n..."
+                    }
+                }
+            }
+        ]
+    }
+    #+END_SRC
+
+** Combining Tools and Prompts
+
+*** Synergy Benefits
+    1. **Tools**: Low-level lorem generation (words, sentences, paragraphs)
+    2. **Prompts**: High-level templates and use cases
+
+    #+BEGIN_SRC mermaid :file tools-prompts.png :mkdirp t
+    graph TB
+        User[User Request] --> Prompts[Prompt Templates]
+        User --> Tools[Lorem Tools]
+
+        Prompts --> Generator[Lorem Engine]
+        Tools --> Generator
+
+        Generator --> Output[Generated Content]
+
+        subgraph "Prompts Layer"
+            P1[Email Template]
+            P2[Blog Outline]
+            P3[UI Mockup]
+        end
+
+        subgraph "Tools Layer"
+            T1[generate_words]
+            T2[generate_sentences]
+            T3[generate_paragraphs]
+        end
+
+        Prompts --> P1
+        Prompts --> P2
+        Prompts --> P3
+
+        Tools --> T1
+        Tools --> T2
+        Tools --> T3
+    #+END_SRC
+
+*** Implementation Benefits
+    - Better discoverability through slash commands
+    - Pre-configured templates for common use cases
+    - Consistent formatting and structure
+    - Easier for non-technical users
+
+** Updated Implementation Plan
+
+*** Phase 1: Core + Basic Tools (Existing)
+    - Lorem generation engine
+    - Basic MCP tools
+
+*** Phase 2: Add Prompts Support (NEW)
+    #+BEGIN_SRC python :tangle src/prompts/lorem_prompts.py :mkdirp t
+    """Lorem Ipsum prompt templates."""
+
+    from typing import List, Dict, Any
+    from ..core.lorem import LoremGenerator
+
+    class LoremPromptHandler:
+        """Handle prompt-based lorem generation."""
+
+        def __init__(self):
+            self.generator = LoremGenerator()
+            self.templates = self._load_templates()
+
+        def _load_templates(self) -> Dict[str, Any]:
+            """Load prompt templates."""
+            return {
+                "email": self._email_template,
+                "blog": self._blog_template,
+                "presentation": self._presentation_template,
+                "ui_component": self._ui_component_template
+            }
+
+        async def list_prompts(self) -> List[Dict[str, Any]]:
+            """List available prompts."""
+            return [
+                {
+                    "name": "email",
+                    "description": "Professional email template",
+                    "arguments": [
+                        {
+                            "name": "tone",
+                            "description": "Email tone: formal, casual, friendly",
+                            "required": False
+                        }
+                    ]
+                },
+                {
+                    "name": "blog",
+                    "description": "Blog post outline with sections",
+                    "arguments": [
+                        {
+                            "name": "sections",
+                            "description": "Number of sections (1-10)",
+                            "required": False
+                        }
+                    ]
+                },
+                # Add more prompts here
+            ]
+
+        async def get_prompt(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+            """Get a specific prompt with filled content."""
+            if name not in self.templates:
+                raise ValueError(f"Unknown prompt: {name}")
+
+            return self.templates[name](arguments)
+
+        def _email_template(self, args: Dict[str, Any]) -> Dict[str, Any]:
+            """Generate email template."""
+            tone = args.get("tone", "formal")
+
+            greetings = {
+                "formal": "Dear Sir/Madam",
+                "casual": "Hi there",
+                "friendly": "Hello friend"
+            }
+
+            closings = {
+                "formal": "Yours sincerely",
+                "casual": "Cheers",
+                "friendly": "Best wishes"
+            }
+
+            return {
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": {
+                            "type": "text",
+                            "text": f"""Subject: {self.generator.generate_words(5).title()}
+
+{greetings.get(tone, greetings["formal"])},
+
+{self.generator.generate_paragraphs(2)}
+
+{self.generator.generate_sentences(2)}
+
+{closings.get(tone, closings["formal"])},
+Lorem Ipsum Team"""
+                        }
+                    }
+                ]
+            }
+    #+END_SRC
+
+*** Phase 3: Cloudflare Implementation with Prompts
+    #+BEGIN_SRC typescript
+    // Add to MCP handler
+    case 'prompts/list':
+      return handleListPrompts(params, id);
+
+    case 'prompts/get':
+      return handleGetPrompt(params, id);
+    #+END_SRC
+
+* Recommendations for MCP Lorem
+
+** 1. Implement Both Tools and Prompts
+   - **Tools**: For programmatic access and fine control
+   - **Prompts**: For user-friendly templates and discovery
+
+** 2. Leverage TLS 1.3 Benefits
+   - Deploy on platforms with automatic TLS 1.3
+   - Focus on OAuth security at application layer
+   - Monitor for security advisories
+
+** 3. Prompt Template Ideas
+
+*** Content Templates
+   - Email (formal/casual/marketing)
+   - Blog posts (tech/lifestyle/business)
+   - Social media posts
+   - Product descriptions
+   - Legal documents (terms/privacy)
+
+*** Developer Templates
+   - API documentation
+   - Code comments
+   - README templates
+   - Error messages
+   - UI component text
+
+*** Creative Templates
+   - Story outlines
+   - Dialogue snippets
+   - Poetry structures
+   - Script formats
+
+** 4. Future Enhancements
+   - Dynamic prompt generation based on user preferences
+   - Multi-language lorem ipsum
+   - Industry-specific jargon generators
+   - Integration with design tools
+
+* Conclusion
+
+While RFC 8446 (TLS 1.3) provides the secure foundation for all MCP communications, the real game-changer for mcp-lorem is the **Prompts specification**. By implementing both tools and prompts, we can create a lorem ipsum service that is:
+
+1. **Secure**: TLS 1.3 ensures encrypted, authenticated communication
+2. **Discoverable**: Prompts appear as slash commands in Claude
+3. **User-friendly**: Pre-configured templates for common use cases
+4. **Flexible**: Both programmatic (tools) and template (prompts) access
+5. **Extensible**: Easy to add new templates and styles
+
+The combination of modern security (TLS 1.3) and enhanced usability (MCP Prompts) makes this the perfect architecture for a next-generation lorem ipsum service.

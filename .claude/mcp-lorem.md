@@ -44,11 +44,12 @@ mcp-lorem/
 - [ ] Local MCP server implementation
 - [ ] OAuth flow for remote deployment
 
-### TODO Priority
+### TODO Priority (UPDATED - Prompts are the game changer!)
 1. **Implement core lorem.py** - Start with standard Lorem Ipsum generation
-2. **Create local MCP server** - Use Python SDK for rapid testing
-3. **Test with MCP Inspector** - Validate protocol compliance
-4. **Build TypeScript remote server** - Add OAuth support for Claude
+2. **Create local MCP server with BOTH tools and prompts** - Prompts enable slash commands in Claude!
+3. **Design prompt templates** - Email, blog, presentation, UI mockup templates
+4. **Test with MCP Inspector** - Validate both tools and prompts functionality
+5. **Build TypeScript remote server** - Add OAuth support with prompts capability
 
 ## Technical Decisions
 
@@ -58,9 +59,9 @@ mcp-lorem/
 - Extensible word bank system
 
 ### MCP Implementation
-- Tools API: `generate_lorem` with type, count, and mode parameters
-- Resources API: Custom word banks (future)
-- Prompts API: Pre-configured generation templates
+- **Tools API**: `generate_lorem` with type, count, and mode parameters (programmatic access)
+- **Prompts API**: Pre-configured templates (email, blog, presentation, UI) - **KEY FEATURE** for slash commands
+- **Resources API**: Custom word banks and style guides (future)
 
 ### OAuth Configuration
 - Callback URL: https://claude.ai/api/mcp/auth_callback
@@ -118,10 +119,12 @@ wrangler deploy
 ## Important Notes
 
 1. **setup.org is the source of truth** - All architectural decisions and specifications are documented there
-2. **Test before committing** - Use MCP Inspector to validate changes
-3. **Document decisions** - Use git notes for context not suitable for commit messages
-4. **Follow MCP spec** - Refer to https://modelcontextprotocol.io for protocol details
-5. **OAuth complexity** - Remote server requires careful OAuth implementation per RFC specifications
+2. **tls-prompts-analysis.org contains key insights** - Prompts are the UX game-changer for lorem ipsum!
+3. **Test before committing** - Use MCP Inspector to validate both tools AND prompts
+4. **Document decisions** - Use git notes for context not suitable for commit messages
+5. **Follow MCP spec** - Refer to https://modelcontextprotocol.io for protocol details
+6. **OAuth complexity** - Remote server requires careful OAuth implementation per RFC specifications
+7. **TLS 1.3 is automatic** - Cloudflare/modern platforms handle TLS transparently
 
 ## Resources
 - MCP Specification: https://modelcontextprotocol.io
