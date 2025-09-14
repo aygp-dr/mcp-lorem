@@ -1,0 +1,293 @@
+#+TITLE: MCP Lorem - Quick Reference & Implementation Checklist
+#+AUTHOR: jwalsh
+#+DATE: [2025-09-14 Sun]
+
+* Quick Reference Card
+
+** Claude MCP Integration Points
+   | Component | Value |
+   |------------------+---------------------------------------------|
+   | OAuth Callback | https://claude.ai/api/mcp/auth_callback |
+   | Alt Callback | https://claude.com/api/mcp/auth_callback |
+   | Client Name | Claude |
+   | Auth Methods | OAuth 2.0 + PKCE |
+   | Transport | Streamable HTTP (SSE deprecated) |
+   | Platforms | Web, Desktop, Mobile (view-only) |
+
+** Required OAuth Endpoints
+   | Endpoint | Method | Purpose |
+   |----------------------------+--------+---------------------------|
+   | /.well-known/oauth | GET | OAuth metadata discovery |
+   | /oauth/register | POST | Dynamic client registration |
+   | /oauth/authorize | GET | Authorization flow start |
+   | /oauth/token | POST | Token exchange |
+   | /oauth/revoke (optional) | POST | Token revocation |
+
+** MCP Protocol Endpoints
+   | Method | Purpose | Required |
+   |------------------+---------------------------+----------|
+   | initialize | Protocol handshake | ✓ |
+   | tools/list | List available tools | ✓ |
+   | tools/call | Execute tool | ✓ |
+   | prompts/list | List prompt templates | ✗ |
+   | resources/list | List available resources | ✗ |
+   | resources/read | Read resource content | ✗ |
+
+* Step-by-Step Implementation Checklist
+
+** Phase 1: Local Development (Day 1)
+   - [ ] Create GitHub repository: github.com/aygp-dr/mcp-lorem
+   - [ ] Initialize npm package with GitHub Packages config
+   - [ ] Implement core Lorem generator (Python/TypeScript)
+   - [ ] Create basic MCP server using Python SDK
+   - [ ] Test with MCP Inspector locally
+   - [ ] Document basic usage
+
+** Phase 2: OAuth Foundation (Day 2)
+   - [ ] Study OAuth flows in MCP spec
+   - [ ] Implement /.well-known/oauth endpoint
+   - [ ] Create client registration handler
+   - [ ] Build authorization endpoint
+   - [ ] Implement token exchange with PKCE
+   - [ ] Add token validation middleware
+   - [ ] Test OAuth flow with curl/Postman
+
+** Phase 3: Cloudflare Deployment (Day 3)
+   - [ ] Set up Cloudflare Workers account
+   - [ ] Create D1 database and schema
+   - [ ] Port server to TypeScript for Workers
+   - [ ] Configure wrangler.toml
+   - [ ] Deploy initial version
+   - [ ] Test with real Claude connection
+   - [ ] Monitor logs for issues
+
+** Phase 4: Integration & Testing (Day 4)
+   - [ ] Add to Claude Desktop via Settings
+   - [ ] Test all Lorem generation modes
+   - [ ] Create mcp.el integration
+   - [ ] Write Claude Code examples
+   - [ ] Test error scenarios
+   - [ ] Document troubleshooting steps
+
+** Phase 5: Production Ready (Day 5)
+   - [ ] Add rate limiting
+   - [ ] Implement proper error handling
+   - [ ] Add comprehensive logging
+   - [ ] Set up monitoring/alerts
+   - [ ] Create user documentation
+   - [ ] Submit to MCP directory
+
+* Implementation Decision Tree
+
+#+BEGIN_SRC mermaid :file decision-tree.png :mkdirp t
+graph TD
+    Start[Start MCP Lorem Project]
+
+    Start --> Auth{Need Auth?}
+    Auth -->|No| Authless[Implement Authless Server]
+    Auth -->|Yes| OAuth[Implement OAuth]
+
+    OAuth --> DCR{Support DCR?}
+    DCR -->|Yes| Dynamic[Dynamic Registration]
+    DCR -->|No| Static[Static Client ID]
+
+    Authless --> Local{Deployment?}
+    Dynamic --> Local
+    Static --> Local
+
+    Local -->|Local Only| PyMCP[Python MCP Server]
+    Local -->|Remote| CF{Use Cloudflare?}
+
+    CF -->|Yes| Workers[Cloudflare Workers]
+    CF -->|No| Other[VPS/Lambda/etc]
+
+    PyMCP --> Test[Test with Inspector]
+    Workers --> Test
+    Other --> Test
+
+    Test --> Claude[Add to Claude]
+    Claude --> Done[Production Ready]
+#+END_SRC
+
+* Common Gotchas & Solutions
+
+** 1. PKCE Implementation
+   #+BEGIN_QUOTE
+   ⚠️ GOTCHA: Not implementing PKCE properly
+   ✅ SOLUTION: Always require code_challenge, verify with SHA256
+   #+END_QUOTE
+
+** 2. Redirect URI Validation
+   #+BEGIN_QUOTE
+   ⚠️ GOTCHA: Using substring matching for redirect URIs
+   ✅ SOLUTION: Exact string match only
+   #+END_QUOTE
+
+** 3. Token Expiry
+   #+BEGIN_QUOTE
+   ⚠️ GOTCHA: Not handling token refresh
+   ✅ SOLUTION: Implement refresh flow, reasonable expiry times
+   #+END_QUOTE
+
+** 4. CORS Headers
+   #+BEGIN_QUOTE
+   ⚠️ GOTCHA: Missing CORS headers or using wildcard
+   ✅ SOLUTION: Explicit Claude domain whitelist
+   #+END_QUOTE
+
+** 5. MCP Response Format
+   #+BEGIN_QUOTE
+   ⚠️ GOTCHA: Wrong content structure in tool responses
+   ✅ SOLUTION: Always wrap in content array with type
+   #+END_QUOTE
+
+* Minimal Working Examples
+
+** 1. Authless Local Server (Python)
+   #+BEGIN_SRC python
+   # Quick start - no auth required
+   from mcp.server import Server
+   import asyncio
+
+   server = Server("mcp-lorem")
+
+   @server.list_tools()
+   async def list_tools():
+       return [{
+           "name": "lorem",
+           "description": "Generate Lorem Ipsum",
+           "inputSchema": {
+               "type": "object",
+               "properties": {
+                   "words": {"type": "integer"}
+               }
+           }
+       }]
+
+   @server.call_tool()
+   async def call_tool(name, arguments):
+       if name == "lorem":
+           # Minimal lorem generation
+           lorem_words = ["lorem", "ipsum", "dolor", "sit", "amet"]
+           result = " ".join(lorem_words[:arguments.get("words", 5)])
+           return {"type": "text", "text": result}
+
+   asyncio.run(server.run())
+   #+END_SRC
+
+** 2. OAuth Metadata Response
+   #+BEGIN_SRC json
+   {
+     "issuer": "https://mcp-lorem.example.com",
+     "authorization_endpoint": "https://mcp-lorem.example.com/oauth/authorize",
+     "token_endpoint": "https://mcp-lorem.example.com/oauth/token",
+     "registration_endpoint": "https://mcp-lorem.example.com/oauth/register",
+     "response_types_supported": ["code"],
+     "grant_types_supported": ["authorization_code", "refresh_token"],
+     "code_challenge_methods_supported": ["S256"]
+   }
+   #+END_SRC
+
+** 3. MCP Tool Response Format
+   #+BEGIN_SRC json
+   {
+     "jsonrpc": "2.0",
+     "id": 1,
+     "result": {
+       "content": [
+         {
+           "type": "text",
+           "text": "Lorem ipsum dolor sit amet..."
+         }
+       ]
+     }
+   }
+   #+END_SRC
+
+* Testing Commands Cheatsheet
+
+#+BEGIN_SRC bash :tangle test-commands.sh
+#!/bin/bash
+
+# Test OAuth metadata
+curl https://your-server.com/.well-known/oauth | jq
+
+# Test client registration
+curl -X POST https://your-server.com/oauth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_name": "Test Client",
+    "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"]
+  }' | jq
+
+# Test with MCP Inspector
+mcp-inspector python src/local/server.py
+
+# Test Cloudflare deployment
+wrangler dev  # Local testing
+wrangler deploy  # Production deploy
+wrangler tail  # View logs
+
+# Test D1 database
+wrangler d1 execute mcp-lorem --command="SELECT * FROM oauth_clients"
+
+# Manual token test
+curl -X POST https://your-server.com/mcp \
+  -H "Authorization: Bearer test-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/list",
+    "id": 1
+  }' | jq
+#+END_SRC
+
+* Resources Quick Links
+
+** Official Documentation
+- [[https://modelcontextprotocol.io/specification][MCP Specification]]
+- [[https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization][MCP Authorization Spec]]
+- [[https://github.com/modelcontextprotocol/python-sdk][Python SDK]]
+- [[https://github.com/modelcontextprotocol/typescript-sdk][TypeScript SDK]]
+
+** OAuth References
+- [[https://datatracker.ietf.org/doc/html/rfc7591][RFC 7591 - Dynamic Client Registration]]
+- [[https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13][OAuth 2.1 Draft]]
+- [[https://oauth.net/2/pkce/][PKCE Explanation]]
+
+** Cloudflare Resources
+- [[https://developers.cloudflare.com/workers/][Workers Documentation]]
+- [[https://developers.cloudflare.com/d1/][D1 Database Docs]]
+- [[https://github.com/cloudflare/ai/tree/main/demos/remote-mcp-authless][Cloudflare MCP Example]]
+
+** Testing Tools
+- [[https://github.com/modelcontextprotocol/inspector][MCP Inspector]]
+- [[https://oauth.tools][OAuth Debugger]]
+- [[https://httpie.io][HTTPie - Better than curl]]
+
+* Final Implementation Tips
+
+1. **Start Simple**: Begin with authless local server, add OAuth later
+2. **Test Early**: Use MCP Inspector before trying Claude integration
+3. **Log Everything**: Especially during OAuth flows
+4. **Use TypeScript**: Better for Cloudflare Workers and type safety
+5. **Version Your API**: Include version in server info
+6. **Document Well**: Clear README with examples
+7. **Handle Errors**: Graceful degradation, clear error messages
+8. **Monitor Usage**: Track API calls, token usage
+9. **Plan for Scale**: Rate limiting from day one
+10. **Join Community**: MCP Discord for help
+
+* Success Metrics
+
+- [ ] Local server responds to MCP Inspector
+- [ ] OAuth flow completes without errors
+- [ ] Claude Desktop successfully adds connector
+- [ ] Lorem generation works from Claude
+- [ ] Error cases handled gracefully
+- [ ] Documentation clear and complete
+- [ ] Published to npm/GitHub Packages
+- [ ] Submitted to MCP directory
+
+Remember: The goal is a working MCP server that generates Lorem Ipsum text,
+accessible from Claude with proper OAuth authentication. Everything else is a bonus!
