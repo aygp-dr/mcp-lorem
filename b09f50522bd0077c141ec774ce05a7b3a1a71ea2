@@ -1,0 +1,28 @@
+Context: User requested guidelines for other agents working on the project
+
+Prompt: "git status and add guidelines for other agents in .claude/ or show me what to add to memory"
+
+Implementation Decisions:
+- Created .claude/mcp-lorem.md as project-specific guidelines
+- Included comprehensive development workflow and practices
+- Documented current implementation status for continuity
+- Added technical decisions and architecture references
+- Provided testing and deployment commands
+
+Considerations:
+- Balanced between detailed guidance and maintainability
+- Referenced setup.org as source of truth to avoid duplication
+- Included security reminders for OAuth implementation
+- Added practical commands for immediate productivity
+
+Testing Strategy:
+- Local testing with MCP Inspector
+- Integration testing with Claude clients
+- Continuous validation of protocol compliance
+
+Future Agents Should:
+1. Read setup.org for full specifications
+2. Follow conventional commit standards
+3. Use git notes for extended documentation
+4. Test with MCP Inspector before commits
+5. Update status tracking in guidelines
