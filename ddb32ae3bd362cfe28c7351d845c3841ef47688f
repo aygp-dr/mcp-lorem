@@ -1,0 +1,73 @@
+# Setup Process Documentation
+
+## Prompt Context
+User requested creation of a public repository with comprehensive description and topics, utilizing ghq directory structure for repository management. The goal was to establish an MCP (Model Context Protocol) Lorem Ipsum generator server.
+
+## Environment
+- Platform: FreeBSD 14.3-RELEASE
+- Working Directory: /home/jwalsh/ghq/github.com/aygp-dr/mcp-lorem
+- Repository Manager: ghq
+- GitHub User: aygp-dr (Aidan Pace)
+
+## Repository Configuration
+- Name: mcp-lorem
+- Visibility: Public
+- Description: MCP (Model Context Protocol) Lorem Ipsum generator - Provides Lorem Ipsum text generation capabilities through the MCP protocol for AI assistants and language models
+- Topics: mcp, lorem-ipsum, ai-tools, llm, text-generation, developer-tools, anthropic-claude, model-context-protocol
+
+## Initial Setup Decisions
+
+### Architecture Considerations
+1. **Dual Implementation Strategy**: Planned both local (Python) and remote (TypeScript) servers to maximize compatibility
+2. **OAuth Support**: Included comprehensive OAuth 2.0 implementation plans for remote deployment
+3. **Multi-Client Support**: Designed to work with Claude Desktop, Claude Code, and Emacs mcp.el
+4. **Extensibility**: Built-in support for multiple Lorem Ipsum styles (standard, cicero, bacon, hipster)
+
+### Technology Stack Selection
+- **Local Server**: Python with MCP SDK for simplicity and rapid prototyping
+- **Remote Server**: TypeScript for better Claude integration and Cloudflare Workers deployment
+- **Package Distribution**: GitHub Packages npm registry for versioned releases
+- **Testing**: MCP Inspector for protocol compliance validation
+
+### Project Structure Rationale
+- Separated core logic from transport layers (local/remote)
+- Included comprehensive examples for different client integrations
+- Planned test coverage for all components
+- Documentation-first approach with setup.org as living specification
+
+## Implementation Phases
+1. Core Lorem Engine (language-agnostic logic)
+2. Local MCP Server (immediate testing capability)
+3. Remote Server with OAuth (production deployment)
+4. NPM Package Configuration (distribution)
+5. Testing and Integration (validation)
+
+## Security Considerations
+- OAuth 2.0 with PKCE for secure authorization
+- Dynamic Client Registration (DCR) support
+- IP whitelisting for Claude endpoints
+- Rate limiting and token rotation strategies
+
+## Testing Strategy
+- Unit tests for core generation logic
+- Integration tests with MCP Inspector
+- Manual testing with Claude Desktop/Code
+- Automated CI/CD via GitHub Actions
+
+## Deviations from Standard Practices
+- Used .org format for setup documentation (more structured than Markdown for complex specs)
+- Included mermaid diagrams for visual architecture documentation
+- Pre-planned for multiple Lorem Ipsum variants beyond standard implementation
+- Built-in support for future protocol extensions (subscriptions, sampling)
+
+## Future Considerations
+- Resource subscriptions when Claude supports them
+- Custom word bank management via resources API
+- Potential WebAssembly compilation for browser-based usage
+- Integration with other MCP-compatible clients beyond Claude
+
+## References Consulted
+- MCP Specification (modelcontextprotocol.io)
+- OAuth 2.0 RFCs (7591, 8707, 9728)
+- Claude MCP implementation guides
+- EmacsWiki LoremIpsum for feature parity
